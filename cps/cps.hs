@@ -1,6 +1,28 @@
+import Control.Monad.Cont
+import Data.Functor.Identity (Identity)
+-- newtype ContT r m a = ContT {runContT :: (a -> m r) -> m r}
+-- type Cont r = ContT r Data.Functor.Identity.Identity
+-- ContT :: ((a -> m r) -> m r) -> ContT r m a
+-- runCont :: Cont r a -> (a -> r) -> r
+
+-- newtype Cont1 r a = Cont1 { runCont1 :: (a -> r) -> r }
+
 foldl_cps :: (a -> b -> (a -> r) -> r) -> a -> [b] -> (a -> r) -> r
 foldl_cps _ acc [] c = c acc
 foldl_cps f acc (x:xs) c = f acc x (\e -> foldl_cps f e xs c)
+
+--{-
+foldl_cps1 :: (a -> b -> Cont r a) -> a -> [b] -> Cont r a
+foldl_cps1 _ acc [] = return acc
+foldl_cps1 f acc (x:xs) = runCont (f acc x) (\e -> foldl_cps f e xs)
+--}
+
+-- add_cps :: Num a => a -> a -> Cont r a
+add_cps x y = return (x+y)
+
+test1 = runCont (add_cps 5 11) id
+
+
 
 qsort_cps :: Ord a => [a] -> ([a] -> r) -> r
 qsort_cps [] c = c []
@@ -10,6 +32,7 @@ qsort_cps (x:xs) c = foldl_cps foldfunc ([],[]) xs
 	$ \rsorted -> c $ lsorted ++ (x:rsorted)
   	where
     foldfunc (l,r) e cont = cont $ if e < x then (e:l,r) else (l,e:r)
+
 
 concat_cps :: [a] -> [a] -> ([a] -> r) -> r
 concat_cps [] xs c = c xs
@@ -21,7 +44,6 @@ last_cps :: [a] -> (a -> r) -> r
 last_cps [x] c = c x
 last_cps (_:xs) c = last_cps xs c
 last_cps [] _ = error "empty list"
-
 
 {-
 test :: Int
