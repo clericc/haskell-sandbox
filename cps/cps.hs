@@ -1,20 +1,29 @@
 import Control.Monad.Cont
 import Data.Functor.Identity (Identity)
 -- newtype ContT r m a = ContT {runContT :: (a -> m r) -> m r}
--- type Cont r = ContT r Data.Functor.Identity.Identity
+-- type Cont r = ContT r Identity
 -- ContT :: ((a -> m r) -> m r) -> ContT r m a
 -- runCont :: Cont r a -> (a -> r) -> r
+-- runContT :: ContT r m a -> (a -> m r) -> m r
 
--- newtype Cont1 r a = Cont1 { runCont1 :: (a -> r) -> r }
+-- instance Monad (Cont r) where
+--   return n = Cont (\k -> k n)
+--   m >>= f  = Cont (\k -> runCont m (\a -> runCont (f a) k))
 
 foldl_cps :: (a -> b -> (a -> r) -> r) -> a -> [b] -> (a -> r) -> r
 foldl_cps _ acc [] c = c acc
 foldl_cps f acc (x:xs) c = f acc x (\e -> foldl_cps f e xs c)
 
 --{-
+
 foldl_cps1 :: (a -> b -> Cont r a) -> a -> [b] -> Cont r a
 foldl_cps1 _ acc [] = return acc
-foldl_cps1 f acc (x:xs) = runCont (f acc x) (\e -> foldl_cps f e xs)
+foldl_cps1 f acc (x:xs) = f acc x >>= flip (foldl_cps1 f) xs >>= return
+
+foldl_cps2 :: (a -> b -> Cont r a) -> a -> [b] -> Cont r a
+foldl_cps2 _ acc [] = return acc
+foldl_cps2 f acc (x:xs) = cont $ \k -> runCont (f acc x) (\e -> runCont (foldl_cps2 f e xs) k)
+
 --}
 
 -- add_cps :: Num a => a -> a -> Cont r a
