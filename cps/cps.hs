@@ -14,6 +14,10 @@ foldl_cps :: (a -> b -> (a -> r) -> r) -> a -> [b] -> (a -> r) -> r
 foldl_cps _ acc [] c = c acc
 foldl_cps f acc (x:xs) c = f acc x (\e -> foldl_cps f e xs c)
 
+foldr_cps :: (b -> a -> (a -> r) -> r) -> a -> [b] -> (a -> r) -> r
+foldr_cps _ e [] k = k e
+foldr_cps f e (x:xs) k = foldr_cps f e xs (\e' -> f x e' k)
+
 
 
 foldl_cps1 :: (a -> b -> Cont r a) -> a -> [b] -> Cont r a
@@ -31,7 +35,26 @@ foldl_cps3 f acc (x:xs) = do
   res <- foldl_cps3 f e xs
   return res
 
+map_cps :: (a -> (b -> r) -> r) -> [a] -> ([b] -> r) -> r
+map_cps f = foldr_cps (\ e acc k' -> f e $ \ e' -> k' $ e':acc) []
 
+
+--zipWith :: (a -> b -> c) -> [a] -> [b] -> [c]
+--zipWith _ [] _ = []
+--zipWith _ _ [] = []
+--zipWith f (x:xs) (y:ys) = f x y : zipWith f xs ys
+
+
+zipWith_cps :: (a -> b -> (c -> r) -> r) -> [a] -> [b] -> ([c] -> r) -> r
+zipWith_cps _ [] _ k = k []
+zipWith_cps _ _ [] k = k []
+zipWith_cps f (x:xs) (y:ys) k = f x y $ \ z -> zipWith_cps f xs ys $ \zs -> k (z:zs)
+
+zip_cps :: [a] -> [b] -> ([(a,b)] -> r) -> r
+zip_cps = zipWith_cps (\a b k -> k (a,b))
+
+
+map f xs = foldr (\ e acc -> f e : acc) [] xs
 
 --}
 
@@ -49,3 +72,7 @@ qsort_cps (x:xs) c = foldl_cps foldfunc ([],[]) xs
 	$ \rsorted -> c $ lsorted ++ (x:rsorted)
   	where
     foldfunc (l,r) e cont = cont $ if e < x then (e:l,r) else (l,e:r)
+
+concat_cps :: [a] -> [a] -> ([a] -> r) -> r
+concat_cps [] ys k = k ys
+concat_cps (x:xs) ys k = concat_cps xs ys $ \zs -> k $ x : zs
